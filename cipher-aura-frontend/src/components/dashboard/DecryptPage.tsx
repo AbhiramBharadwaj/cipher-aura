@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Unlock, Key, Shield, Zap, Copy, CheckCircle, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiPost } from "@/lib/api";
+
+const KEYS_STORAGE = "cipher_keys";
 
 export function DecryptPage() {
   const { toast } = useToast();
@@ -22,47 +25,68 @@ export function DecryptPage() {
   const [decryptionTime, setDecryptionTime] = useState(0);
   const [isValidDecryption, setIsValidDecryption] = useState(true);
 
+  // --- Prefill keys from localStorage if available (saved by Encrypt page)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(KEYS_STORAGE);
+      if (saved) {
+        const { caesarShift, vigenereKey, aesKey } = JSON.parse(saved);
+        console.log("[DecryptPage] Loaded keys from storage:", { caesarShift, vigenereKey: !!vigenereKey, aesKey: !!aesKey });
+        setFormData(prev => ({
+          ...prev,
+          caesarShift: typeof caesarShift === "number" ? caesarShift : prev.caesarShift,
+          vigenereKey: typeof vigenereKey === "string" ? vigenereKey : prev.vigenereKey,
+          aesKey: typeof aesKey === "string" ? aesKey : prev.aesKey
+        }));
+      } else {
+        console.log("[DecryptPage] No saved keys found in storage.");
+      }
+    } catch (e) {
+      console.warn("[DecryptPage] Failed to read saved keys:", e);
+    }
+  }, []);
+
   const handleDecrypt = async () => {
-  console.log("[DecryptPage] Decrypt button clicked");
-  setIsDecrypting(true);
-  const startTime = Date.now();
+    console.log("[DecryptPage] Decrypt button clicked");
+    setIsDecrypting(true);
+    const startTime = Date.now();
 
-  try {
-    console.log("[DecryptPage] Sending API request to backend...");
-
-    const response = await fetch("http://127.0.0.1:5000/decrypt", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
+    try {
+      console.log("[DecryptPage] Sending API request to backend /api/decrypt with JWT...");
+      const data = await apiPost("/api/decrypt", {
         encrypted_message: formData.encryptedMessage,
         caesar_shift: formData.caesarShift,
         vigenere_key: formData.vigenereKey,
         aes_key: formData.aesKey
-      })
-    });
+      });
 
-    if (!response.ok) {
-      throw new Error("API response was not ok");
+      console.log("[DecryptPage] API response received:", data);
+
+      const plain = data?.decrypted_message || data?.plaintext || "";
+      if (!plain) {
+        throw new Error(JSON.stringify({ error: "Invalid decrypt response" }));
+      }
+
+      setDecryptedResult(plain);
+      setIsValidDecryption(true);
+
+      toast({ title: "Decrypted", description: "Message decrypted successfully." });
+    } catch (error: any) {
+      console.error("[DecryptPage] Error during decryption:", error);
+      let msg = "Decryption failed. Please check your keys and try again.";
+      try {
+        const parsed = JSON.parse(error?.message || "{}");
+        if (parsed?.error) msg = parsed.error;
+      } catch {}
+      setDecryptedResult(msg);
+      setIsValidDecryption(false);
+      toast({ title: "Decryption Failed", description: msg, variant: "destructive" });
     }
 
-    const data = await response.json();
-    console.log("[DecryptPage] API response received: ", data);
-
-    setDecryptedResult(data.decrypted_message);
-    setIsValidDecryption(true);
-  } catch (error) {
-    console.error("[DecryptPage] Error during decryption:", error);
-    setDecryptedResult("Decryption failed. Please check your keys and try again.");
-    setIsValidDecryption(false);
-  }
-
-  setDecryptionTime(Date.now() - startTime);
-  setIsDecrypting(false);
-  setStep(4);
-};
-
+    setDecryptionTime(Date.now() - startTime);
+    setIsDecrypting(false);
+    setStep(4);
+  };
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(decryptedResult);

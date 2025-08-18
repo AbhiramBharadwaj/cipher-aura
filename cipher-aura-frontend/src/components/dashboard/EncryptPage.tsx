@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Lock, Key, Shield, Zap, Copy, Download, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiPost } from "@/lib/api";
 
 export function EncryptPage() {
   const { toast } = useToast();
@@ -18,54 +19,61 @@ export function EncryptPage() {
     aesKey: ""
   });
   const [encryptedResult, setEncryptedResult] = useState("");
+  const [caesarOut, setCaesarOut] = useState("");
+  const [vigenereOut, setVigenereOut] = useState("");
+  const [showSteps, setShowSteps] = useState(true);
+
   const [isEncrypting, setIsEncrypting] = useState(false);
   const [encryptionTime, setEncryptionTime] = useState(0);
 
   const handleEncrypt = async () => {
-  console.log("[EncryptPage] Encrypt button clicked");
-  setIsEncrypting(true);
-  const startTime = Date.now();
+    console.log("[EncryptPage] Encrypt button clicked");
+    setIsEncrypting(true);
+    const startTime = Date.now();
 
-  try {
-    console.log("[EncryptPage] Sending API request to backend...");
-    const res = await fetch("http://127.0.0.1:5000/encrypt", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
+    try {
+      console.log("[EncryptPage] Sending API request to backend...");
+      const data = await apiPost("/api/encrypt", {
         message: formData.message,
         caesar_shift: formData.caesarShift,
         vigenere_key: formData.vigenereKey,
         aes_key: formData.aesKey
-      })
-    });
+      });
 
-    const data = await res.json();
-    console.log("[EncryptPage] API response received:", data);
+      console.log("[EncryptPage] API response received:", data);
 
-    setEncryptedResult(data.encrypted_message);
-    setEncryptionTime(Date.now() - startTime);
-    setStep(4);
-  } catch (error) {
-    console.error("[EncryptPage] Error during encryption:", error);
-    toast({
-      title: "Encryption Failed",
-      description: "Something went wrong. Please try again.",
-      variant: "destructive"
-    });
-  }
+      const cipher = data?.encrypted_message || data?.ciphertext_b64 || "";
+      if (!cipher) {
+        throw new Error(JSON.stringify({ error: "Invalid encrypt response" }));
+      }
 
-  setIsEncrypting(false);
-};
+      setEncryptedResult(cipher);
+      setCaesarOut(data?.caesar_output || "");
+      setVigenereOut(data?.vigenere_output || "");
 
+      setEncryptionTime(Date.now() - startTime);
+      setStep(4);
 
+      toast({ title: "Encrypted", description: "Your message has been encrypted successfully." });
+    } catch (error: any) {
+      console.error("[EncryptPage] Error during encryption:", error);
+      let msg = "Encryption failed. Please try again.";
+      try {
+        const parsed = JSON.parse(error?.message || "{}");
+        if (parsed?.error) msg = parsed.error;
+      } catch {}
+      toast({ title: "Encryption Failed", description: msg, variant: "destructive" });
+    } finally {
+      setIsEncrypting(false);
+    }
+  };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(encryptedResult);
+  const copyToClipboard = (text?: string) => {
+    const val = text ?? encryptedResult;
+    navigator.clipboard.writeText(val);
     toast({
       title: "Copied to clipboard",
-      description: "Encrypted message has been copied to your clipboard."
+      description: "Copied successfully."
     });
   };
 
@@ -78,6 +86,8 @@ export function EncryptPage() {
       aesKey: ""
     });
     setEncryptedResult("");
+    setCaesarOut("");
+    setVigenereOut("");
     setEncryptionTime(0);
   };
 
@@ -268,14 +278,55 @@ export function EncryptPage() {
           {step === 4 && (
             <Card className="glass-card border-navy-light neon-glow">
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-primary">
-                  <CheckCircle className="w-6 h-6" />
-                  <span>Encryption Complete</span>
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center space-x-2 text-primary">
+                    <CheckCircle className="w-6 h-6" />
+                    <span>Encryption Complete</span>
+                  </CardTitle>
+                  <Button variant="outline" size="sm" onClick={() => setShowSteps(s => !s)}>
+                    {showSteps ? "Hide steps" : "Show steps"}
+                  </Button>
+                </div>
               </CardHeader>
+
               <CardContent className="space-y-4">
+                {/* Steps (Caesar + Vigenère outputs) */}
+                {showSteps && (
+                  <>
+                    <div>
+                      <Label className="text-foreground font-medium">Caesar Output</Label>
+                      <Textarea
+                        value={caesarOut}
+                        readOnly
+                        className="mt-2 glass-card border-navy-light font-mono text-sm"
+                        rows={4}
+                      />
+                      <div className="mt-2">
+                        <Button variant="outline" size="sm" onClick={() => copyToClipboard(caesarOut)}>
+                          <Copy className="w-4 h-4 mr-2" /> Copy Caesar Output
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-foreground font-medium">Vigenère Output</Label>
+                      <Textarea
+                        value={vigenereOut}
+                        readOnly
+                        className="mt-2 glass-card border-navy-light font-mono text-sm"
+                        rows={4}
+                      />
+                      <div className="mt-2">
+                        <Button variant="outline" size="sm" onClick={() => copyToClipboard(vigenereOut)}>
+                          <Copy className="w-4 h-4 mr-2" /> Copy Vigenère Output
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 <div>
-                  <Label className="text-foreground font-medium">Encrypted Message</Label>
+                  <Label className="text-foreground font-medium">Ciphertext (base64)</Label>
                   <Textarea
                     value={encryptedResult}
                     readOnly
@@ -283,9 +334,10 @@ export function EncryptPage() {
                     rows={8}
                   />
                 </div>
+
                 <div className="flex space-x-2">
                   <Button 
-                    onClick={copyToClipboard}
+                    onClick={() => copyToClipboard(encryptedResult)}
                     variant="outline" 
                     className="flex-1 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
                   >
@@ -300,6 +352,7 @@ export function EncryptPage() {
                     Download
                   </Button>
                 </div>
+
                 <Button 
                   onClick={resetForm}
                   className="w-full gradient-primary text-white hover-lift"

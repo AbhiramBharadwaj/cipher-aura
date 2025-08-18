@@ -68,16 +68,7 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
         </SidebarGroup>
 
         {/* Bottom */}
-        <div className="mt-auto p-4 border-t border-navy-light">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="hover:bg-navy-light text-foreground hover:text-red-400 transition-colors">
-                <LogOut className="w-5 h-5" />
-                {!collapsed && <span>Logout</span>}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </div>
+        
       </SidebarContent>
     </Sidebar>
   );
