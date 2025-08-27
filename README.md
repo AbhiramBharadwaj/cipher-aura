@@ -55,27 +55,29 @@ Message → Caesar → Vigenère → AES → Encrypted Output
 ---
 
 ## 📂 Project Structure
-CipherAura/
-│── backend/
-│ ├── run.py # Flask entrypoint
-│ ├── routes/
-│ │ ├── auth_routes.py # Register/Login/JWT endpoints
-│ │ ├── cipher_routes.py # Encrypt/Decrypt endpoints
-│ │ ├── message_routes.py # Messaging + threads
-│ ├── encryption/
-│ │ ├── caeser.py # Caesar cipher
-│ │ ├── vigenere.py # Vigenère cipher
-│ │ ├── aes.py # AES (CBC + Base64)
-│ ├── requirements.txt
-│ ├── .env # Environment variables
-│
-│── frontend/
-│ ├── main.tsx # React entrypoint
-│ ├── App.tsx # App routes
-│ ├── index.css # Tailwind theme
-│ ├── App.css # Basic layout styles
-│ ├── components/ # Landing, Auth, Dashboard
-│ ├── pages/ # Index, NotFound
+
+> **CipherAura/**
+> - backend/  
+>   - run.py – Flask entrypoint  
+>   - routes/  
+>     - auth_routes.py – Register/Login/JWT endpoints  
+>     - cipher_routes.py – Encrypt/Decrypt endpoints  
+>     - message_routes.py – Messaging + threads  
+>   - encryption/  
+>     - caeser.py – Caesar cipher  
+>     - vigenere.py – Vigenère cipher  
+>     - aes.py – AES (CBC + Base64)  
+>   - requirements.txt  
+>   - .env – Environment variables  
+>
+> - frontend/  
+>   - main.tsx – React entrypoint  
+>   - App.tsx – App routes  
+>   - index.css – Tailwind theme  
+>   - App.css – Basic layout styles  
+>   - components/ – Landing, Auth, Dashboard  
+>   - pages/ – Index, NotFound  
+
 
 
 ---
